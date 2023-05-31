@@ -44,3 +44,10 @@ def lr_scheduler(optimizer, num_iterations, annealing = False):
     else:
         frac_lambda = lambda epoch: 1.0
     return torch.optim.lr_scheduler.LambdaLR(optimizer, lr_lambda = [frac_lambda])
+
+
+def evaluate_model(model, env, n_eval_episodes):
+    n_envs = env.num_envs
+    episode_rewards = []
+    episode_lengths = []
+    # TODO: evaluate model

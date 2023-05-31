@@ -14,4 +14,3 @@ class VFLoss(nn.Module):
         if not clip:
             return 0.5 * ((target - estimate) ** 2).mean()
         # TODO: implement clipped version
-
