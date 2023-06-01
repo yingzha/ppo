@@ -107,17 +107,19 @@ def train(cfg: TrainingConfig) -> None:
 
     writer.close()
 
+    torch.save(agent.state_dict(), f"{cfg.output_dir}/ppo.pt")
+
     logging.info("preparing evaluation environment")
     eval_env = make_vec_env(cfg.env_id, num_env=1,
                             output_dir = cfg.output_dir, capture_video=True)
 
-    eval_env.close()
     mean_reward, std_reward = evaluate_model(agent, eval_env,
                                              cfg.num_eval_episodes,
                                              )
     logging.info(f"evaluation mean reward {mean_reward}, std {std_reward}")
     logging.info("saving the model to the destination")
-    torch.save(agent.state_dict(), f"{cfg.output_dir}/ppo.pt")
+
+    eval_env.close()
 
 if __name__ == "__main__":
     train()
