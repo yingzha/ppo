@@ -1,10 +1,10 @@
-### PPO impementation using pytorch
+## PPO impementation using pytorch
 The code was adapted from https://github.com/vwxyzjn/ppo-implementation-details.
 
 Please refer to https://iclr-blog-track.github.io/2022/03/25/ppo-implementation-details/ for more reading.
 
 
-## Get started
+### Get started
 1. build the docker images
 ```python
 docker build . -t ppo-dev 
