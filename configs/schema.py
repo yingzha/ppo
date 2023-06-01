@@ -2,7 +2,7 @@ from dataclasses import dataclass
 
 @dataclass
 class TrainingConfig:
-    env_id:str = "CartPole-v1"
+    env_id:str = "LunarLander-v2"
     output_dir: str = "/app/outputs"
     num_iterations: int = 5000
     num_eval_episodes: int = 10
