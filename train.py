@@ -111,6 +111,7 @@ def train(cfg: TrainingConfig) -> None:
     eval_env = make_vec_env(cfg.env_id, num_env=1,
                             output_dir = cfg.output_dir, capture_video=True)
 
+    eval_env.close()
     mean_reward, std_reward = evaluate_model(agent, eval_env,
                                              cfg.num_eval_episodes,
                                              )
