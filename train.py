@@ -4,7 +4,7 @@ import torch
 import random
 from configs.schema import TrainingConfig
 from hydra.core.config_store import ConfigStore
-from ppo.utils import make_vec_env, lr_scheduler
+from ppo.utils import make_vec_env, lr_scheduler, evaluate_model
 from ppo.model import Agent, collect_policy_rollout, compute_advantage
 from ppo.losses import CLIPLoss, VFLoss
 from torch.utils.tensorboard import SummaryWriter
@@ -20,6 +20,7 @@ def train(cfg: TrainingConfig) -> None:
     if not torch.cuda.is_available and cfg.device == "cuda":
         logging.warning("cuda is unavailable!... switching to cpu instead.")
         cfg.device = "cpu"
+    device = cfg.device
 
     # step 1: make environment and initialize observation & done
     logging.info("step 1: creating the environment")
@@ -39,6 +40,7 @@ def train(cfg: TrainingConfig) -> None:
     clip_loss = CLIPLoss().to(device)
     vf_loss = VFLoss().to(device)
     n_steps = 0
+    avg_loss = 0
 
     # step 4: loop for training, including rollout data collection,
     # advantage computation and gradient descent
@@ -82,7 +84,9 @@ def train(cfg: TrainingConfig) -> None:
             entropy_loss = entropy.mean()
             loss = policy_loss + cfg.vf_coef * value_loss - cfg.ent_coef * entropy_loss
 
-            total_steps += len(observations)
+            n_steps += len(observations)
+            avg_loss += loss
+
             optimizer.zero_grad()
             loss.backward()
             torch.nn.utils.clip_grad_norm_(agent.parameters(), cfg.grad_norm)
@@ -94,11 +98,23 @@ def train(cfg: TrainingConfig) -> None:
             writer.add_scalar("losses/entropy_loss", entropy_loss.item(), n_steps)
             writer.add_scalar("losses/total_loss", loss.item(), n_steps)
 
+        if (it + 1) % cfg.logging_iterations == 0:
+            avg_loss = avg_loss / (len(observations) * cfg.logging_iterations * cfg.epochs)
+            logging.info(f"iteration: {it}, logging average loss: {avg_loss}")
+            avg_loss = 0
         scheduler.step()
         writer.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], n_steps)
 
     writer.close()
 
+    logging.info("preparing evaluation environment")
+    eval_env = make_vec_env(cfg.env_id, num_env=1,
+                            output_dir = cfg.output_dir, capture_video=True)
+
+    mean_reward, std_reward = evaluate_model(agent, eval_env,
+                                             cfg.num_eval_episodes,
+                                             )
+    logging.info(f"evaluation mean reward {mean_reward}, std {std_reward}")
     logging.info("saving the model to the destination")
     torch.save(agent.state_dict(), f"{cfg.output_dir}/ppo.pt")
 

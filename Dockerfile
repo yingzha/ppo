@@ -1,5 +1,9 @@
 FROM python:3.9.0 as BASE
 
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg && apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
+
 ARG POETRY_VERSION=1.5.1
 
 WORKDIR /app
