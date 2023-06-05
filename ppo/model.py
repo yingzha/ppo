@@ -58,7 +58,7 @@ class Agent(nn.Module):
     def __init__(self, envs):
         super().__init__()
         obs_space_n = flatdim(envs.single_observation_space)
-        act_space_n = envs.single_action_space.n
+        act_space_n = flatdim(envs.single_action_space)
         # value function
         self.critic = nn.Sequential(
             nn.Linear(obs_space_n, 64),

@@ -24,7 +24,7 @@ def train(cfg: TrainingConfig) -> None:
 
     # step 1: make environment and initialize observation & done
     logging.info("step 1: creating the environment")
-    env = make_vec_env(cfg.env_id, cfg.num_envs, cfg.seed, capture_video=cfg.capture_video)
+    env = make_vec_env(cfg.env_id, cfg.num_envs, cfg.seed, capture_video=False)
     init_observation, _ = env.reset()
     init_done = torch.zeros(cfg.num_envs, device=device)
     init_observation = torch.tensor(init_observation, device=device)
@@ -67,10 +67,9 @@ def train(cfg: TrainingConfig) -> None:
         for epoch in range(cfg.epochs):
             indices = list(range(observations.shape[0]))
             random.shuffle(indices)
-            cur_values = agent.get_value(observations[indices])
             _, cur_logprobs, entropy = agent.get_action(observations[indices],
                                                         actions[indices])
-            ratio = cur_logprobs - logprobs
+            ratio = (cur_logprobs - logprobs).exp()
             # TODO: KL regularization
 
             # normalize advantage by default
@@ -79,6 +78,7 @@ def train(cfg: TrainingConfig) -> None:
             normed_advantage = (shuffled_advantage - mean) / (std + 1e-8)
 
             # loss term
+            cur_values = agent.get_value(observations[indices])
             value_loss = vf_loss(returns[indices], cur_values)
             policy_loss = clip_loss(normed_advantage, ratio, cfg.clip_epsilon)
             entropy_loss = entropy.mean()
