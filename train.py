@@ -69,8 +69,15 @@ def train(cfg: TrainingConfig) -> None:
             random.shuffle(indices)
             _, cur_logprobs, entropy = agent.get_action(observations[indices],
                                                         actions[indices])
-            ratio = (cur_logprobs - logprobs).exp()
-            # TODO: KL regularization
+            ratio = (cur_logprobs - logprobs[indices]).exp()
+
+            # KL thresholding for early stopping. See more details in
+            # https://spinningup.openai.com/en/latest/algorithms/ppo.html
+            # KL[q, p]= (r − 1) − logr, r = q / p
+            kl = (ratio - 1) - ratio.log()
+            if cfg.target_kl is not None and kl.mean() > cfg.target_kl:
+                logging.info(f"early stopping at iteration {it}, epoch {epoch}")
+                break
 
             # normalize advantage by default
             shuffled_advantage = advantage[indices]
@@ -99,7 +106,7 @@ def train(cfg: TrainingConfig) -> None:
             writer.add_scalar("losses/total_loss", loss.item(), n_steps)
 
         if (it + 1) % cfg.logging_iterations == 0:
-            avg_loss = avg_loss / (len(observations) * cfg.logging_iterations * cfg.epochs)
+            avg_loss = avg_loss / (len(observations) * cfg.logging_iterations)
             logging.info(f"iteration: {it}, logging average loss: {avg_loss}")
             avg_loss = 0
         scheduler.step()

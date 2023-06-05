@@ -18,4 +18,5 @@ class TrainingConfig:
     grad_norm: float = 0.5
     seed: int = 2023
     anneal_lr: bool = True
+    target_kl: float = 0.03
     device: str = "cpu"
