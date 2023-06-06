@@ -116,7 +116,6 @@ def train(cfg: TrainingConfig) -> None:
             eval_result= evaluate_model(agent, cfg.env_id,
                                         cfg.num_eval_episodes,
                                         cfg.output_dir,
-                                        cfg.num_eval_episodes,
                                         capture_video=False)
 
             mean_reward, std_reward = eval_result["mean reward"], eval_result["std reward"]
@@ -136,7 +135,6 @@ def train(cfg: TrainingConfig) -> None:
     eval_result= evaluate_model(agent, cfg.env_id,
                                 cfg.num_eval_episodes,
                                 cfg.output_dir,
-                                cfg.num_eval_episodes,
                                 capture_video = True,
                                 )
     mean_reward, std_reward = eval_result["mean reward"], eval_result["std reward"]
