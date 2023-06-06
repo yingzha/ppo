@@ -4,24 +4,19 @@ import numpy as np
 import gymnasium as gym
 
 
-def make_vec_env(env_id: str, num_env: int, seed: int = 1024, start_index: int = 0,
-                 output_dir: str = "./", capture_video: bool = False):
-    def _make_env(rank, env_idx):
+def make_vec_env(env_id: str, num_env: int, seed: int = 1024, start_index: int = 0):
+    def _make_env(rank):
         env = gym.make(env_id, render_mode="rgb_array")
         env = gym.wrappers.record_episode_statistics.RecordEpisodeStatistics(env)
-        if capture_video and num_env == 1:
-            env = gym.wrappers.RecordVideo(env, f"{output_dir}/videos/{env_id}")
+
         # seed everything
         env.reset(seed = rank + seed)
         env.action_space.seed(rank + seed)
         env.observation_space.seed(rank + seed)
         return env
 
-    if num_env == 1:
-        return _make_env(start_index, 0)
-
     envs = gym.vector.SyncVectorEnv(
-        [lambda: _make_env(i + start_index, i) for i in range(num_env)])
+        [lambda: _make_env(i + start_index) for i in range(num_env)])
 
     return envs
 
@@ -50,10 +45,15 @@ def lr_scheduler(optimizer, num_iterations, annealing = False):
 
 
 @torch.no_grad()
-def evaluate_model(agent, env, n_eval_episodes, return_episode_rewards = False):
+def evaluate_model(agent, env_id, n_eval_episodes, output_dir: str = "./",
+                   return_episode_rewards = False, capture_video = False):
     episode_rewards = []
     episode_lengths = []
     cur_reward, cur_length, episode_counter = 0, 0, 0
+
+    env = gym.make(env_id, render_mode="rgb_array")
+    if capture_video:
+        env = gym.wrappers.RecordVideo(env, f"{output_dir}/videos/{env_id}")
     observation, _ = env.reset()
     terminated, truncated = False, False
     device = next(agent.parameters()).device
@@ -73,11 +73,23 @@ def evaluate_model(agent, env, n_eval_episodes, return_episode_rewards = False):
                 cur_reward = 0
                 cur_length = 0
                 episode_counter += 1
+                terminated, truncated = False, False
+                break
 
     mean_reward = np.mean(episode_rewards)
     std_reward = np.std(episode_rewards)
 
-    if return_episode_rewards:
-        return episode_rewards, episode_lengths
+    env.close()
 
-    return mean_reward, std_reward
+    results = {"mean reward": mean_reward,
+               "std reward": std_reward}
+
+    if return_episode_rewards:
+        results.update(
+            {
+                "episode rewards": episode_rewards,
+                "episode lengths": episode_lengths,
+            }
+        )
+
+    return results

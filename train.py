@@ -24,7 +24,7 @@ def train(cfg: TrainingConfig) -> None:
 
     # step 1: make environment and initialize observation & done
     logging.info("step 1: creating the environment")
-    env = make_vec_env(cfg.env_id, cfg.num_envs, cfg.seed, capture_video=False)
+    env = make_vec_env(cfg.env_id, cfg.num_envs, cfg.seed)
     init_observation, _ = env.reset()
     init_done = torch.zeros(cfg.num_envs, device=device)
     init_observation = torch.tensor(init_observation, device=device)
@@ -109,24 +109,36 @@ def train(cfg: TrainingConfig) -> None:
             avg_loss = avg_loss / (len(observations) * cfg.logging_iterations)
             logging.info(f"iteration: {it}, logging average loss: {avg_loss}")
             avg_loss = 0
+
+            eval_result= evaluate_model(agent, cfg.env_id,
+                                        cfg.num_eval_episodes,
+                                        cfg.output_dir,
+                                        cfg.num_eval_episodes,
+                                        capture_video=False)
+
+            mean_reward, std_reward = eval_result["mean reward"], eval_result["std reward"]
+            writer.add_scalar("losses/mean_reward", mean_reward, n_steps)
+            logging.info(f"evaluation mean reward {mean_reward}, std {std_reward}")
+
         scheduler.step()
         writer.add_scalar("learning_rate", optimizer.param_groups[0]["lr"], n_steps)
 
     writer.close()
 
+    logging.info("saving the model to the destination")
     torch.save(agent.state_dict(), f"{cfg.output_dir}/ppo.pt")
 
     logging.info("preparing evaluation environment")
-    eval_env = make_vec_env(cfg.env_id, num_env=1,
-                            output_dir = cfg.output_dir, capture_video=True)
 
-    mean_reward, std_reward = evaluate_model(agent, eval_env,
-                                             cfg.num_eval_episodes,
-                                             )
+    eval_result= evaluate_model(agent, cfg.env_id,
+                                cfg.num_eval_episodes,
+                                cfg.output_dir,
+                                cfg.num_eval_episodes,
+                                capture_video = True,
+                                )
+    mean_reward, std_reward = eval_result["mean reward"], eval_result["std reward"]
     logging.info(f"evaluation mean reward {mean_reward}, std {std_reward}")
-    logging.info("saving the model to the destination")
 
-    eval_env.close()
 
 if __name__ == "__main__":
     train()
