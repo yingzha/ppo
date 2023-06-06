@@ -3,6 +3,7 @@ import logging
 import torch
 import random
 from configs.schema import TrainingConfig
+from gymnasium.spaces.utils import flatdim
 from hydra.core.config_store import ConfigStore
 from ppo.utils import make_vec_env, lr_scheduler, evaluate_model
 from ppo.model import Agent, collect_policy_rollout, compute_advantage
@@ -31,7 +32,9 @@ def train(cfg: TrainingConfig) -> None:
 
     # step 2: instantiate agent
     logging.info("step 2: instantiating the A2C")
-    agent = Agent(env).to(device)
+    obs_space_n = flatdim(env.single_observation_space)
+    act_space_n = flatdim(env.single_action_space)
+    agent = Agent(obs_space_n, act_space_n).to(device)
 
     # step 3: instantiate optimizer, loss and lr scheduler
     logging.info("step 3: instantiating optimizer, scheduler and loss")
@@ -81,13 +84,13 @@ def train(cfg: TrainingConfig) -> None:
 
             # normalize advantage by default
             shuffled_advantage = advantage[indices]
-            mean, std = shuffled_advantage.mean(), shuffled_advantage.std()
-            normed_advantage = (shuffled_advantage - mean) / (std + 1e-8)
+            # mean, std = shuffled_advantage.mean(), shuffled_advantage.std()
+            # normed_advantage = (shuffled_advantage - mean) / (std + 1e-8)
 
             # loss term
             cur_values = agent.get_value(observations[indices])
             value_loss = vf_loss(returns[indices], cur_values)
-            policy_loss = clip_loss(normed_advantage, ratio, cfg.clip_epsilon)
+            policy_loss = clip_loss(shuffled_advantage, ratio, cfg.clip_epsilon)
             entropy_loss = entropy.mean()
             loss = policy_loss + cfg.vf_coef * value_loss - cfg.ent_coef * entropy_loss
 

@@ -29,7 +29,6 @@ def collect_policy_rollout(agent, env, obersavation, done, num_steps):
         rewards[step] = torch.tensor(reward, device=device)
         obersavation = torch.tensor(obersavation, device=device)
         done = torch.tensor(terminated | truncated, device=device)
-        # TODO: log episodic data to tensorboard
 
     return obs, acts, logprobs, rewards, dones, values, obersavation, done
 
@@ -55,13 +54,11 @@ def compute_advantage(rewards, num_steps, dones, values, next_done,
 
 
 class Agent(nn.Module):
-    def __init__(self, envs):
+    def __init__(self, observation_space_n, action_space_n):
         super().__init__()
-        obs_space_n = flatdim(envs.single_observation_space)
-        act_space_n = flatdim(envs.single_action_space)
         # value function
         self.critic = nn.Sequential(
-            nn.Linear(obs_space_n, 64),
+            nn.Linear(observation_space_n, 64),
             nn.Tanh(),
             nn.Linear(64, 64),
             nn.Tanh(),
@@ -70,11 +67,11 @@ class Agent(nn.Module):
 
         # policy function
         self.actor = nn.Sequential(
-            nn.Linear(obs_space_n, 64),
+            nn.Linear(observation_space_n, 64),
             nn.Tanh(),
             nn.Linear(64, 64),
             nn.Tanh(),
-            nn.Linear(64, act_space_n),
+            nn.Linear(64, action_space_n),
         )
 
         self.reset_parameters()
